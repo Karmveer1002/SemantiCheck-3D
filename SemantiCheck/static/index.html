@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SemantiCheck 3D — Semantic Intelligence Studio</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <style>
+    :root {
+      --bg-void: #07080c;
+      --bg-card: rgba(16, 19, 28, 0.78);
+      --bg-card-active: linear-gradient(155deg, rgba(44, 52, 82, 0.85), rgba(20, 24, 38, 0.92));
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-hover: rgba(165, 180, 252, 0.35);
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --accent-indigo: #6366f1;
+      --accent-slate: #818cf8;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: var(--bg-void);
+      color: var(--text-primary);
+      overflow-x: hidden;
+      min-height: 100vh;
+    }
+
+    /* Fullscreen WebGL 3D Particle Canvas */
+    #webgl-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* Subtle Ambient Silk Glow (Matte Indigo, No Neon) */
+    .ambient-glow {
+      position: fixed;
+      width: 65vw;
+      height: 65vw;
+      top: -20%;
+      left: -15%;
+      background: radial-gradient(circle, rgba(55, 65, 115, 0.18) 0%, rgba(7, 8, 12, 0) 70%);
+      pointer-events: none;
+      z-index: 0;
+      animation: driftGlow 14s ease-in-out infinite alternate;
+    }
+    @keyframes driftGlow {
+      0% { transform: translate(0, 0) scale(1); }
+      100% { transform: translate(8%, 10%) scale(1.08); }
+    }
+
+    /* Top Minimal Agency Navbar */
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px 48px;
+      backdrop-filter: blur(14px);
+      background: rgba(7, 8, 12, 0.65);
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .brand {
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      font-size: 0.92rem;
+      text-transform: uppercase;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .brand-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent-slate);
+      box-shadow: 0 0 12px rgba(129, 140, 248, 0.6);
+    }
+    .nav-pills {
+      display: flex;
+      gap: 28px;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+    }
+    .nav-pills span {
+      cursor: pointer;
+      transition: color 0.25s;
+    }
+    .nav-pills span:hover, .nav-pills span.active {
+      color: var(--text-primary);
+    }
+    .nav-badge {
+      padding: 8px 18px;
+      border-radius: 999px;
+      border: 1px solid var(--border-subtle);
+      background: rgba(255, 255, 255, 0.03);
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+    }
+
+    /* Main Layout Grid (Left 3D Particle Stage + Right Interactive Cards) */
+    .container {
+      position: relative;
+      z-index: 10;
+      max-width: 1380px;
+      margin: 0 auto;
+      padding: 40px 48px 80px;
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      gap: 48px;
+      align-items: start;
+    }
+
+    /* Left Sticky 3D Sculpture Info Panel */
+    .stage-left {
+      position: sticky;
+      top: 110px;
+      padding-top: 260px; /* Leaves open space for the 3D particle sculpture floating right here */
+    }
+    .eyebrow {
+      font-size: 0.75rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--accent-slate);
+      margin-bottom: 10px;
+      font-weight: 600;
+    }
+    .hero-heading {
+      font-size: 2.35rem;
+      font-weight: 600;
+      line-height: 1.18;
+      letter-spacing: -0.03em;
+      margin-bottom: 14px;
+    }
+    .hero-desc {
+      font-size: 0.94rem;
+      line-height: 1.6;
+      color: var(--text-secondary);
+      margin-bottom: 24px;
+    }
+    .shape-selector {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .shape-btn {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      padding: 7px 14px;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      cursor: pointer;
+      transition: all 0.25s ease;
+    }
+    .shape-btn:hover, .shape-btn.active {
+      background: rgba(99, 102, 241, 0.2);
+      border-color: var(--border-hover);
+      color: #fff;
+    }
+
+    /* Right Workspace Cards (Antimatter Dotted-Matrix Glass Style) */
+    .workspace {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .cards-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 22px;
+    }
+
+    .agency-card {
+      position: relative;
+      background: var(--bg-card);
+      background-image: radial-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+      background-size: 16px 16px;
+      border: 1px solid var(--border-subtle);
+      border-radius: 20px;
+      padding: 26px;
+      backdrop-filter: blur(18px);
+      box-shadow: 0 24px 50px rgba(0, 0, 0, 0.55);
+      transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.35s ease, background 0.35s ease;
+    }
+    .agency-card:hover {
+      transform: translateY(-6px);
+      border-color: var(--border-hover);
+      background: var(--bg-card-active);
+    }
+
+    .card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 18px;
+    }
+    .card-num {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      letter-spacing: 0.08em;
+    }
+    .card-arrow {
+      font-size: 1.1rem;
+      color: var(--text-secondary);
+      transition: transform 0.25s ease;
+    }
+    .agency-card:hover .card-arrow {
+      transform: translate(3px, -3px);
+      color: #fff;
+    }
+    .card-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: 14px;
+      letter-spacing: -0.01em;
+    }
+
+    /* File Drop Zone */
+    .file-drop {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: 1px dashed rgba(255, 255, 255, 0.16);
+      background: rgba(7, 8, 12, 0.55);
+      margin-bottom: 14px;
+      cursor: pointer;
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+      transition: border-color 0.25s, background 0.25s;
+    }
+    .file-drop:hover {
+      border-color: var(--accent-slate);
+      background: rgba(99, 102, 241, 0.08);
+    }
+    .file-drop input[type="file"] {
+      display: none;
+    }
+
+    textarea {
+      width: 100%;
+      height: 185px;
+      background: rgba(7, 8, 12, 0.72);
+      border: 1px solid var(--border-subtle);
+      border-radius: 14px;
+      padding: 14px;
+      color: var(--text-primary);
+      font-family: 'Inter', sans-serif;
+      font-size: 0.9rem;
+      line-height: 1.55;
+      resize: vertical;
+      outline: none;
+      transition: border-color 0.25s;
+    }
+    textarea:focus {
+      border-color: var(--accent-slate);
+    }
+
+    /* Action Bar */
+    .action-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 18px;
+      padding: 18px 26px;
+      backdrop-filter: blur(16px);
+    }
+    .engine-toggle {
+      display: flex;
+      gap: 10px;
+    }
+    .engine-option {
+      padding: 9px 16px;
+      border-radius: 999px;
+      border: 1px solid var(--border-subtle);
+      background: transparent;
+      color: var(--text-secondary);
+      font-size: 0.84rem;
+      cursor: pointer;
+      transition: all 0.25s;
+    }
+    .engine-option.active {
+      background: rgba(99, 102, 241, 0.22);
+      border-color: var(--accent-slate);
+      color: #fff;
+      font-weight: 500;
+    }
+
+    .run-btn {
+      background: linear-gradient(135deg, #3b426e, #252a48);
+      border: 1px solid rgba(165, 180, 252, 0.35);
+      color: #fff;
+      padding: 12px 28px;
+      border-radius: 999px;
+      font-size: 0.92rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+      transition: transform 0.25s ease, box-shadow 0.25s ease;
+    }
+    .run-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 14px 32px rgba(79, 70, 229, 0.28);
+    }
+    .run-btn:disabled {
+      opacity: 0.5;
+      cursor: wait;
+    }
+
+    /* Results Card (03) */
+    #results-panel {
+      display: none;
+      animation: fadeUp 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(18px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .result-grid {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      gap: 32px;
+      align-items: center;
+      margin-top: 10px;
+    }
+    .score-box {
+      text-align: center;
+      padding: 24px;
+      border-radius: 16px;
+      background: rgba(7, 8, 12, 0.65);
+      border: 1px solid var(--border-subtle);
+    }
+    .score-big {
+      font-size: 3.1rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      color: #fff;
+    }
+    .status-tag {
+      display: inline-block;
+      margin-top: 10px;
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+    }
+    .tag-dup { background: rgba(190, 60, 85, 0.22); border: 1px solid rgba(244, 114, 138, 0.4); color: #fecdd3; }
+    .tag-sim { background: rgba(180, 130, 50, 0.22); border: 1px solid rgba(251, 191, 36, 0.35); color: #fef3c7; }
+    .tag-diff { background: rgba(45, 130, 110, 0.22); border: 1px solid rgba(52, 211, 153, 0.35); color: #d1fae5; }
+
+    .metric-bar-group { margin-bottom: 16px; }
+    .metric-bar-top {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.86rem;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+    }
+    .metric-track {
+      width: 100%;
+      height: 8px;
+      background: rgba(255, 255, 255, 0.06);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .metric-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #4f46e5, #a5b4fc);
+      border-radius: 999px;
+      width: 0%;
+      transition: width 1s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .keywords-list {
+      margin-top: 16px;
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+    .kw-chip {
+      display: inline-block;
+      padding: 3px 10px;
+      margin: 3px 4px 0 0;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-subtle);
+      color: #cbd5e1;
+      font-size: 0.76rem;
+    }
+
+    @media (max-width: 1024px) {
+      .container { grid-template-columns: 1fr; }
+      .stage-left { position: relative; top: 0; padding-top: 220px; }
+      .cards-row, .result-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="ambient-glow"></div>
+  <canvas id="webgl-canvas"></canvas>
+
+  <nav>
+    <div class="brand"><span class="brand-dot"></span> SEMANTICHECK</div>
+    <div class="nav-pills">
+      <span class="active" onclick="morphShape(0, this)">01 Cube</span>
+      <span onclick="morphShape(1, this)">02 Syntax &lt;/&gt;</span>
+      <span onclick="morphShape(2, this)">03 Helix</span>
+      <span onclick="morphShape(3, this)">04 Neural Star</span>
+    </div>
+    <div class="nav-badge">NLP Capstone • Project 5</div>
+  </nav>
+
+  <div class="container">
+    <!-- Left 3D Particle Sculpture Column -->
+    <div class="stage-left">
+      <div class="eyebrow">Semantic Intelligence</div>
+      <h1 class="hero-heading">We detect meaning beyond exact words.</h1>
+      <p class="hero-desc">
+        Compare pasted text, Notepad (.txt), Word (.docx), or PDF documents using transformer embeddings and lexical cosine similarity.
+      </p>
+      <div class="shape-selector">
+        <button class="shape-btn active" onclick="morphShape(0, this)">Cube Mesh</button>
+        <button class="shape-btn" onclick="morphShape(1, this)">Code &lt;/&gt;</button>
+        <button class="shape-btn" onclick="morphShape(2, this)">DNA Helix</button>
+        <button class="shape-btn" onclick="morphShape(3, this)">Neural Star</button>
+      </div>
+    </div>
+
+    <!-- Right Interactive Agency Cards -->
+    <div class="workspace">
+      <div class="cards-row">
+        <!-- Card 01 -->
+        <div class="agency-card" onmouseenter="morphShape(0)">
+          <div class="card-top">
+            <span class="card-num">01 / SOURCE</span>
+            <span class="card-arrow">↗</span>
+          </div>
+          <div class="card-title">Primary Document</div>
+          <label class="file-drop">
+            <span id="file1-label">📎 Upload .TXT, .DOCX, or .PDF</span>
+            <span>Browse</span>
+            <input type="file" id="file1" accept=".txt,.docx,.pdf" onchange="updateFileName('file1', 'file1-label')" />
+          </label>
+          <textarea id="text1" placeholder="Paste source text, sentence, or document content here..."></textarea>
+        </div>
+
+        <!-- Card 02 -->
+        <div class="agency-card" onmouseenter="morphShape(1)">
+          <div class="card-top">
+            <span class="card-num">02 / TARGET</span>
+            <span class="card-arrow">↗</span>
+          </div>
+          <div class="card-title">Comparison Document</div>
+          <label class="file-drop">
+            <span id="file2-label">📎 Upload .TXT, .DOCX, or .PDF</span>
+            <span>Browse</span>
+            <input type="file" id="file2" accept=".txt,.docx,.pdf" onchange="updateFileName('file2', 'file2-label')" />
+          </label>
+          <textarea id="text2" placeholder="Paste target text, sentence, or document content here..."></textarea>
+        </div>
+      </div>
+
+      <!-- Engine Switch & Trigger -->
+      <div class="action-bar">
+        <div class="engine-toggle">
+          <button class="engine-option active" id="eng-sbert" onclick="selectEngine('sbert')">
+            Sentence-BERT (Deep Meaning)
+          </button>
+          <button class="engine-option" id="eng-tfidf" onclick="selectEngine('tfidf')">
+            TF-IDF Cosine (Word Overlap)
+          </button>
+        </div>
+        <button class="run-btn" id="compare-btn" onclick="runComparison()">
+          <span>Compare Texts</span>
+          <span>→</span>
+        </button>
+      </div>
+
+      <!-- Card 03: Live Output Panel -->
+      <div class="agency-card" id="results-panel" onmouseenter="morphShape(3)">
+        <div class="card-top">
+          <span class="card-num">03 / DIAGNOSTIC OUTPUT</span>
+          <span class="card-arrow" id="word-stats">0 vs 0 words</span>
+        </div>
+        <div class="card-title">Similarity & Duplication Analysis</div>
+
+        <div class="result-grid">
+          <div class="score-box">
+            <div class="eyebrow" style="margin-bottom:4px;">Match Score</div>
+            <div class="score-big" id="main-score">0.0%</div>
+            <div class="status-tag tag-diff" id="status-badge">DIFFERENT</div>
+          </div>
+
+          <div>
+            <div class="metric-bar-group">
+              <div class="metric-bar-top">
+                <span>Deep Semantic Meaning (Sentence-BERT)</span>
+                <strong id="sbert-val">0%</strong>
+              </div>
+              <div class="metric-track"><div class="metric-fill" id="sbert-bar"></div></div>
+            </div>
+
+            <div class="metric-bar-group">
+              <div class="metric-bar-top">
+                <span>Exact Wording Match (TF-IDF Cosine)</span>
+                <strong id="tfidf-val">0%</strong>
+              </div>
+              <div class="metric-track"><div class="metric-fill" id="tfidf-bar"></div></div>
+            </div>
+
+            <div class="metric-bar-group">
+              <div class="metric-bar-top">
+                <span>Shared Vocabulary Overlap (Jaccard)</span>
+                <strong id="jaccard-val">0%</strong>
+              </div>
+              <div class="metric-track"><div class="metric-fill" id="jaccard-bar"></div></div>
+            </div>
+
+            <div class="keywords-list" id="keywords-container"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // --- UI STATE & API CALLS ---
+    let selectedEngine = "sbert";
+
+    function selectEngine(eng) {
+      selectedEngine = eng;
+      document.getElementById("eng-sbert").classList.toggle("active", eng === "sbert");
+      document.getElementById("eng-tfidf").classList.toggle("active", eng === "tfidf");
+    }
+
+    function updateFileName(inputId, labelId) {
+      const input = document.getElementById(inputId);
+      const label = document.getElementById(labelId);
+      if (input.files.length > 0) {
+        label.textContent = "📄 " + input.files[0].name;
+        label.style.color = "#f8fafc";
+      }
+    }
+
+    async function runComparison() {
+      const btn = document.getElementById("compare-btn");
+      const formData = new FormData();
+      formData.append("text1", document.getElementById("text1").value);
+      formData.append("text2", document.getElementById("text2").value);
+      formData.append("engine", selectedEngine);
+
+      const f1 = document.getElementById("file1").files[0];
+      const f2 = document.getElementById("file2").files[0];
+      if (f1) formData.append("file1", f1);
+      if (f2) formData.append("file2", f2);
+
+      btn.disabled = true;
+      btn.innerHTML = "<span>Analyzing Vectors...</span>";
+      morphShape(2); // Morph 3D particles into DNA Helix while processing
+
+      try {
+        const res = await fetch("/api/compare", { method: "POST", body: formData });
+        const data = await res.json();
+        if (!res.ok) {
+          alert(data.detail || "Please provide text or upload a file in both boxes.");
+          return;
+        }
+
+        const panel = document.getElementById("results-panel");
+        panel.style.display = "block";
+
+        const activePct = (data.active_score * 100).toFixed(1) + "%";
+        document.getElementById("main-score").textContent = activePct;
+        document.getElementById("word-stats").textContent = `${data.words1} words vs ${data.words2} words`;
+
+        const badge = document.getElementById("status-badge");
+        badge.className = "status-tag";
+        if (data.active_score >= 0.75) {
+          badge.classList.add("tag-dup");
+          badge.textContent = "DUPLICATE DETECTED";
+        } else if (data.active_score >= 0.45) {
+          badge.classList.add("tag-sim");
+          badge.textContent = "SEMANTICALLY SIMILAR";
+        } else {
+          badge.classList.add("tag-diff");
+          badge.textContent = "DIFFERENT CONTENT";
+        }
+
+        document.getElementById("sbert-val").textContent = (data.sbert_score * 100).toFixed(1) + "%";
+        document.getElementById("tfidf-val").textContent = (data.tfidf_score * 100).toFixed(1) + "%";
+        document.getElementById("jaccard-val").textContent = (data.jaccard_score * 100).toFixed(1) + "%";
+
+        setTimeout(() => {
+          document.getElementById("sbert-bar").style.width = (data.sbert_score * 100) + "%";
+          document.getElementById("tfidf-bar").style.width = (data.tfidf_score * 100) + "%";
+          document.getElementById("jaccard-bar").style.width = (data.jaccard_score * 100) + "%";
+        }, 60);
+
+        const kwContainer = document.getElementById("keywords-container");
+        if (data.shared_keywords.length > 0) {
+          kwContainer.innerHTML = "<strong>Shared Key Terms:</strong> " +
+            data.shared_keywords.map(w => `<span class="kw-chip">${w}</span>`).join("");
+        } else {
+          kwContainer.innerHTML = "<strong>Shared Key Terms:</strong> None";
+        }
+
+        morphShape(3); // Morph 3D particles into Neural Star when done
+      } catch (err) {
+        alert("Error connecting to Python backend: " + err);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = "<span>Compare Texts</span><span>→</span>";
+      }
+    }
+
+    // --- THREE.JS MORPHING 3D PARTICLE SCULPTURE (ANTIMATTER STYLE) ---
+    const canvas = document.getElementById("webgl-canvas");
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.z = 9.5;
+
+    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+    const PARTICLE_COUNT = 2600;
+    const geometry = new THREE.BufferGeometry();
+    const currentPositions = new Float32Array(PARTICLE_COUNT * 3);
+    const colors = new Float32Array(PARTICLE_COUNT * 3);
+
+    // Build 4 Target Morph Shapes: 0=Cube, 1=Code Brackets </>, 2=DNA Helix, 3=Neural Star
+    const shapes = [[], [], [], []];
+
+    for (let i = 0; i < PARTICLE_COUNT; i++) {
+      // Shape 0: 3D Wireframe/Volume Cube
+      const face = Math.floor(Math.random() * 6);
+      const u = (Math.random() - 0.5) * 2.6;
+      const v = (Math.random() - 0.5) * 2.6;
+      const d = 1.3;
+      let cx = u, cy = v, cz = d;
+      if (face === 1) { cz = -d; }
+      else if (face === 2) { cx = d; cz = u; }
+      else if (face === 3) { cx = -d; cz = u; }
+      else if (face === 4) { cy = d; cz = v; }
+      else if (face === 5) { cy = -d; cz = v; }
+      shapes[0].push(cx, cy, cz);
+
+      // Shape 1: Code Brackets </>
+      const part = i % 3;
+      const t = (Math.random() - 0.5) * 2.2;
+      const zOff = (Math.random() - 0.5) * 0.45;
+      if (part === 0) { // '<'
+        shapes[1].push(-1.35 + Math.abs(t) * 0.75, t, zOff);
+      } else if (part === 1) { // '>'
+        shapes[1].push(1.35 - Math.abs(t) * 0.75, t, zOff);
+      } else { // '/'
+        shapes[1].push(t * 0.42, t * 1.15, zOff);
+      }
+
+      // Shape 2: DNA Double Helix
+      const angle = (i / PARTICLE_COUNT) * Math.PI * 6;
+      const strand = i % 2 === 0 ? 1 : -1;
+      const yHelix = ((i / PARTICLE_COUNT) - 0.5) * 3.8;
+      const rHelix = 1.05 + (Math.random() - 0.5) * 0.18;
+      shapes[2].push(Math.cos(angle) * rHelix * strand, yHelix, Math.sin(angle) * rHelix * strand);
+
+      // Shape 3: 4-Pointed Neural Star / Spark
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos((Math.random() * 2) - 1);
+      const spike = Math.pow(Math.abs(Math.sin(theta * 2) * Math.sin(phi)), 1.6);
+      const rStar = 0.55 + spike * 1.9;
+      shapes[3].push(
+        rStar * Math.sin(phi) * Math.cos(theta),
+        rStar * Math.cos(phi),
+        rStar * Math.sin(phi) * Math.sin(theta)
+      );
+
+      // Initialize starting positions & cool indigo/silver palette
+      currentPositions[i * 3] = shapes[0][i * 3];
+      currentPositions[i * 3 + 1] = shapes[0][i * 3 + 1];
+      currentPositions[i * 3 + 2] = shapes[0][i * 3 + 2];
+
+      const shade = 0.55 + Math.random() * 0.45;
+      colors[i * 3] = 0.58 * shade;     // R
+      colors[i * 3 + 1] = 0.65 * shade; // G
+      colors[i * 3 + 2] = 0.96 * shade; // B
+    }
+
+    geometry.setAttribute("position", new THREE.BufferAttribute(currentPositions, 3));
+    geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+
+    const material = new THREE.PointsMaterial({
+      size: 0.036,
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.85,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    });
+
+    const particleSystem = new THREE.Points(geometry, material);
+    scene.add(particleSystem);
+
+    // Position the 3D sculpture on the left column above the hero headline
+    function updateSculpturePlacement() {
+      if (window.innerWidth > 1024) {
+        particleSystem.position.set(-3.15, 1.35, 0);
+      } else {
+        particleSystem.position.set(0, 2.2, 0);
+      }
+    }
+    updateSculpturePlacement();
+
+    let activeShapeIdx = 0;
+    function morphShape(idx, btnEl) {
+      activeShapeIdx = idx;
+      if (btnEl) {
+        document.querySelectorAll(".shape-btn, .nav-pills span").forEach(el => el.classList.remove("active"));
+        btnEl.classList.add("active");
+      }
+    }
+
+    // Automatically cycle shapes gently every 7 seconds unless user clicks
+    setInterval(() => {
+      activeShapeIdx = (activeShapeIdx + 1) % 4;
+    }, 7000);
+
+    // Mouse Parallax Interaction
+    let mouseX = 0, mouseY = 0;
+    window.addEventListener("mousemove", (e) => {
+      mouseX = (e.clientX / window.innerWidth - 0.5) * 1.4;
+      mouseY = (e.clientY / window.innerHeight - 0.5) * 1.4;
+    });
+
+    window.addEventListener("resize", () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      updateSculpturePlacement();
+    });
+
+    const clock = new THREE.Clock();
+    function animate() {
+      requestAnimationFrame(animate);
+      const t = clock.getElapsedTime();
+
+      const posAttr = geometry.attributes.position;
+      const target = shapes[activeShapeIdx];
+
+      // Smoothly morph every particle toward target shape + organic breathing wave
+      for (let i = 0; i < PARTICLE_COUNT * 3; i += 3) {
+        const wave = Math.sin(t * 1.6 + i * 0.01) * 0.015;
+        posAttr.array[i] += (target[i] + wave - posAttr.array[i]) * 0.055;
+        posAttr.array[i + 1] += (target[i + 1] + wave - posAttr.array[i + 1]) * 0.055;
+        posAttr.array[i + 2] += (target[i + 2] - posAttr.array[i + 2]) * 0.055;
+      }
+      posAttr.needsUpdate = true;
+
+      particleSystem.rotation.y += 0.0045;
+      particleSystem.rotation.x += (mouseY * 0.45 - particleSystem.rotation.x) * 0.05;
+      particleSystem.rotation.z += (-mouseX * 0.35 - particleSystem.rotation.z) * 0.05;
+
+      renderer.render(scene, camera);
+    }
+    animate();
+  </script>
+</body>
+</html>
