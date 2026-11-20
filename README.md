@@ -11,7 +11,7 @@
 
 *Bridging the gap between surface-level keyword matching and transformer-based contextual understanding across raw text and multi-format documents (`.txt`, `.docx`, `.pdf`).*
 
-**Developed by:** Karmveer Singh Gehlot (`2401201072`) • **Course:** BCA • **NLP Capstone — Project 5**
+**Developed by:** Karmveer Singh Gehlot 
 
 </div>
 
